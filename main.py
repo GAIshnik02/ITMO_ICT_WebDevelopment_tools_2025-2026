@@ -8,7 +8,7 @@ from models import (
     Skill, SkillBase,
     Task, TaskBase, TaskWithSubmissions,
     Submission, SubmissionBase, SubmissionWithRelations,
-    ParticipantSkillLink, TeamParticipantLink
+    ParticipantSkillLink, ParticipantTeamLink
 )
 from connection import get_session, init_db
 
@@ -23,7 +23,7 @@ def on_startup():
 
 @app.get('/')
 def hello():
-    return 'Hackathon Management System API'
+    return "Система для проведения хакатонов"
 
 
 @app.get("/participants", response_model=list[Participant])
@@ -34,7 +34,7 @@ def participants_list(session: Session = Depends(get_session)) -> list[Participa
 
 @app.get("/participant/{participant_id}", response_model=ParticipantWithSkills)
 def participant_get(participant_id: int, session: Session = Depends(get_session)) -> Participant:
-    """Get participant by ID with skills"""
+    """Get participant by id with skills"""
     participant = session.get(Participant, participant_id)
     if not participant:
         raise HTTPException(status_code=404, detail="Participant not found")
@@ -250,9 +250,9 @@ def add_participant_to_team(
 
     # Check if relationship already exists
     existing = session.exec(
-        select(TeamParticipantLink).where(
-            TeamParticipantLink.team_id == team_id,
-            TeamParticipantLink.participant_id == participant_id
+        select(ParticipantTeamLink).where(
+            ParticipantTeamLink.team_id == team_id,
+            ParticipantTeamLink.participant_id == participant_id
         )
     ).first()
 
@@ -260,7 +260,7 @@ def add_participant_to_team(
         raise HTTPException(status_code=400, detail="Participant already in team")
 
     # Create the relationship
-    link = TeamParticipantLink(
+    link = ParticipantTeamLink(
         team_id=team_id,
         participant_id=participant_id,
         role=role

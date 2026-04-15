@@ -1,8 +1,7 @@
 from enum import Enum
-from typing import Optional, List
+from typing import List, Optional
 from sqlmodel import SQLModel, Field, Relationship
 from pydantic import EmailStr
-
 
 class ParticipantType(Enum):
     programmer = 'programmer'
@@ -10,8 +9,7 @@ class ParticipantType(Enum):
     manager = 'manager'
     analyst = 'analyst'
 
-
-#M:M участник и скилл
+#M:M между участником и навыком
 class ParticipantSkillLink(SQLModel, table=True):
     participant_id: Optional[int] = Field(
         default=None, foreign_key="participant.id", primary_key=True
@@ -19,25 +17,24 @@ class ParticipantSkillLink(SQLModel, table=True):
     skill_id: Optional[int] = Field(
         default=None, foreign_key="skill.id", primary_key=True
     )
-    proficiency_level: int = Field(default=1, ge=1, le=5)
-
-
-# M:M Участник и команда
-class TeamParticipantLink(SQLModel, table=True):
-    team_id: Optional[int] = Field(
-        default=None, foreign_key="team.id", primary_key=True
+    proficiency_level: Optional[int] = Field(
+        default=None, ge=1, le=10
     )
+
+#M:M между участником и командой
+class ParticipantTeamLink(SQLModel, table=True):
     participant_id: Optional[int] = Field(
         default=None, foreign_key="participant.id", primary_key=True
     )
+    team_id: Optional[int] = Field(
+        default=None, foreign_key="team.id", primary_key=True
+    )
     role: str = Field(default="member")
 
-
-# Базовые модели для post
+#Модели для Post запросов
 class SkillBase(SQLModel):
     name: str
     description: Optional[str] = ""
-
 
 class TeamBase(SQLModel):
     name: str
@@ -58,25 +55,24 @@ class TaskBase(SQLModel):
     evaluation_criteria: str
     is_active: bool = True
 
-
 class SubmissionBase(SQLModel):
     title: str
     description: str
-    repository_url: Optional[str] = None
-    demo_url: Optional[str] = None
+    repository_url: Optional[str] = ""
+    demo_url: Optional[str] = ""
 
 
+# Базовые таблицы
 class Skill(SkillBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     participants: List["Participant"] = Relationship(
         back_populates="skills", link_model=ParticipantSkillLink
     )
 
-
 class Team(TeamBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     participants: List["Participant"] = Relationship(
-        back_populates="teams", link_model=TeamParticipantLink
+        back_populates="teams", link_model=ParticipantTeamLink
     )
     submissions: List["Submission"] = Relationship(back_populates="team")
 
@@ -87,7 +83,7 @@ class Participant(ParticipantBase, table=True):
         back_populates="participants", link_model=ParticipantSkillLink
     )
     teams: List[Team] = Relationship(
-        back_populates="participants", link_model=TeamParticipantLink
+        back_populates="participants", link_model=ParticipantTeamLink
     )
     submissions: List["Submission"] = Relationship(back_populates="participant")
 
@@ -106,7 +102,6 @@ class Submission(SubmissionBase, table=True):
     task: Optional[Task] = Relationship(back_populates="submissions")
     team: Optional[Team] = Relationship(back_populates="submissions")
     participant: Optional[Participant] = Relationship(back_populates="submissions")
-
 
 # Response
 class ParticipantWithSkills(ParticipantBase):
