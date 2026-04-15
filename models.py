@@ -1,6 +1,7 @@
 from enum import Enum
-from typing import Optional
-from pydantic import BaseModel, EmailStr
+from typing import Optional, List
+from sqlmodel import SQLModel, Field, Relationship
+from pydantic import EmailStr
 
 
 class ParticipantType(Enum):
@@ -10,23 +11,126 @@ class ParticipantType(Enum):
     analyst = 'analyst'
 
 
-class Team(BaseModel):
-    id: int
+#M:M участник и скилл
+class ParticipantSkillLink(SQLModel, table=True):
+    participant_id: Optional[int] = Field(
+        default=None, foreign_key="participant.id", primary_key=True
+    )
+    skill_id: Optional[int] = Field(
+        default=None, foreign_key="skill.id", primary_key=True
+    )
+    proficiency_level: int = Field(default=1, ge=1, le=5)
+
+
+# M:M Участник и команда
+class TeamParticipantLink(SQLModel, table=True):
+    team_id: Optional[int] = Field(
+        default=None, foreign_key="team.id", primary_key=True
+    )
+    participant_id: Optional[int] = Field(
+        default=None, foreign_key="participant.id", primary_key=True
+    )
+    role: str = Field(default="member")
+
+
+# Базовые модели для post
+class SkillBase(SQLModel):
     name: str
-    description: str
+    description: Optional[str] = ""
 
 
-class Skill(BaseModel):
-    id: int
+class TeamBase(SQLModel):
     name: str
-    description: str
+    description: Optional[str] = ""
 
 
-class Participant(BaseModel):
-    id: int
-    type: ParticipantType
+class ParticipantBase(SQLModel):
     name: str
     email: EmailStr
     phone: Optional[str] = None
-    team: Team
-    skills: Optional[list[Skill]] = []
+    type: ParticipantType
+
+
+class TaskBase(SQLModel):
+    title: str
+    description: str
+    requirements: str
+    evaluation_criteria: str
+    is_active: bool = True
+
+
+class SubmissionBase(SQLModel):
+    title: str
+    description: str
+    repository_url: Optional[str] = None
+    demo_url: Optional[str] = None
+
+
+class Skill(SkillBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    participants: List["Participant"] = Relationship(
+        back_populates="skills", link_model=ParticipantSkillLink
+    )
+
+
+class Team(TeamBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    participants: List["Participant"] = Relationship(
+        back_populates="teams", link_model=TeamParticipantLink
+    )
+    submissions: List["Submission"] = Relationship(back_populates="team")
+
+
+class Participant(ParticipantBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    skills: List[Skill] = Relationship(
+        back_populates="participants", link_model=ParticipantSkillLink
+    )
+    teams: List[Team] = Relationship(
+        back_populates="participants", link_model=TeamParticipantLink
+    )
+    submissions: List["Submission"] = Relationship(back_populates="participant")
+
+
+class Task(TaskBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    submissions: List["Submission"] = Relationship(back_populates="task")
+
+
+class Submission(SubmissionBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    task_id: Optional[int] = Field(default=None, foreign_key="task.id")
+    team_id: Optional[int] = Field(default=None, foreign_key="team.id")
+    participant_id: Optional[int] = Field(default=None, foreign_key="participant.id")
+
+    task: Optional[Task] = Relationship(back_populates="submissions")
+    team: Optional[Team] = Relationship(back_populates="submissions")
+    participant: Optional[Participant] = Relationship(back_populates="submissions")
+
+
+# Response
+class ParticipantWithSkills(ParticipantBase):
+    id: int
+    skills: List[Skill] = []
+
+
+class ParticipantWithTeams(ParticipantBase):
+    id: int
+    teams: List[Team] = []
+
+
+class TeamWithParticipants(TeamBase):
+    id: int
+    participants: List[Participant] = []
+
+
+class TaskWithSubmissions(TaskBase):
+    id: int
+    submissions: List[Submission] = []
+
+
+class SubmissionWithRelations(SubmissionBase):
+    id: int
+    task: Optional[Task] = None
+    team: Optional[Team] = None
+    participant: Optional[Participant] = None
