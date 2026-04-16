@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 from sqlmodel import SQLModel, Field, Relationship
@@ -40,6 +41,13 @@ class TeamBase(SQLModel):
     name: str
     description: Optional[str] = ""
 
+class UserBase(SQLModel):
+    username: str
+    email: EmailStr
+    full_name: Optional[str] = None
+    is_active: Optional[bool] = True
+    is_superuser: Optional[bool] = False
+
 
 class ParticipantBase(SQLModel):
     name: str
@@ -71,6 +79,9 @@ class Skill(SkillBase, table=True):
 
 class Team(TeamBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    created_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    creator: Optional["User"] = Relationship(back_populates="teams")
+
     participants: List["Participant"] = Relationship(
         back_populates="teams", link_model=ParticipantTeamLink
     )
@@ -79,6 +90,9 @@ class Team(TeamBase, table=True):
 
 class Participant(ParticipantBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    user: Optional["User"] = Relationship(back_populates="participants")
+
     skills: List[Skill] = Relationship(
         back_populates="participants", link_model=ParticipantSkillLink
     )
@@ -86,6 +100,15 @@ class Participant(ParticipantBase, table=True):
         back_populates="participants", link_model=ParticipantTeamLink
     )
     submissions: List["Submission"] = Relationship(back_populates="participant")
+
+
+class User(UserBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    hash_password: str = Field(nullable=False)
+    created_at: Optional[str] = Field(default=None)
+    updated_at: Optional[str] = Field(default=None)
+    participants: List[Participant] = Relationship(back_populates="user")
+    teams: List[Team] = Relationship(back_populates="creator")
 
 
 class Task(TaskBase, table=True):
@@ -129,3 +152,37 @@ class SubmissionWithRelations(SubmissionBase):
     task: Optional[Task] = None
     team: Optional[Team] = None
     participant: Optional[Participant] = None
+
+
+class UserResponse(UserBase):
+    id: int
+    created_at: Optional[datetime] = datetime.now()
+    updated_at: Optional[datetime] = datetime.now()
+
+
+class UserCreate(SQLModel):
+    username: str
+    email: EmailStr
+    password: str
+    full_name: Optional[str] = None
+
+
+class UserUpdate(SQLModel):
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
+    password: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class UserLogin(SQLModel):
+    username: str
+    password: str
+
+
+class Token(SQLModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(SQLModel):
+    username: Optional[str] = None
