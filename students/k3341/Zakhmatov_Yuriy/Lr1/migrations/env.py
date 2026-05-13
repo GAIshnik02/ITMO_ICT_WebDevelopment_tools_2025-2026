@@ -6,8 +6,7 @@ from sqlalchemy import pool
 from dotenv import load_dotenv
 
 from alembic import context
-from sqlmodel import SQLModel
-from models import *
+from students.k3341.Zakhmatov_Yuriy.Lr1.models import *
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
